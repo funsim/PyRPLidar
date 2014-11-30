@@ -10,11 +10,43 @@ RPLidar Python Driver
 import serial
 import logging
 import Queue
+import numpy
 from collections import deque
-import numpy as np
 import matplotlib.pyplot as plt
 
 from rplidar_monitor import *
+
+class Frame(object):
+    def __init__(self, xin, yin):
+        try:
+            self.x = numpy.average(xin, axis=0)
+            self.y = numpy.average(yin, axis=0)
+        except:
+            print "Warning: No points yet"
+            self.x = numpy.zeros(360)
+            self.y = numpy.zeros(360)
+
+
+class FloorMap(object):
+    """ Stores the floor plan of the measurements based on a moving average. """
+
+    def __init__(self):
+        self.measurements_x = []
+        self.measurements_y = []
+
+    def add_measurement(self, x, y):
+        assert len(x) == len(y)
+        if len(x) == 360:
+            self.measurements_x.append(numpy.array(x))
+            self.measurements_y.append(numpy.array(y))
+        else:
+            print "Warning: Ignore incomplete data."
+
+        print "Number of measurements ", len(self.measurements_x)
+
+    def get_average(self):
+        return Frame(self.measurements_x, self.measurements_y)
+
 
 class RPLidar(object):
 
@@ -175,7 +207,7 @@ class PolarPlot(object):
                                    markerfacecolor="blue")
         self.ax.set_rmax(5000)
         self.ax.set_theta_direction(-1) #set to clockwise
-        self.ax.set_theta_offset(np.pi/2) #offset by 90 degree so that 0 degree is at 12 o'clock
+        self.ax.set_theta_offset(numpy.pi/2) #offset by 90 degree so that 0 degree is at 12 o'clock
         #self.ax.grid()
 
 
@@ -198,7 +230,7 @@ class XYPlot(object):
                                  edgecolor="k")
         self.ax = self.figure.add_subplot(111)
         self.lines, = self.ax.plot([],[],
-                                   linestyle="none",
+                                   linestyle="-",
                                    marker=".",
                                    markersize=3,
                                    markerfacecolor="blue")
@@ -210,10 +242,21 @@ class XYPlot(object):
     def update(self, current_frame):
         """ re-draw the XY plot with new curFrame """
 
-        x = current_frame.x
-        y = current_frame.y
-        self.lines.set_xdata(x)
-        self.lines.set_ydata(y)
+        x = list(current_frame.x)
+        y = list(current_frame.y)
+
+        # Filter out invalid rplidar measurements
+        filterx = []
+        filtery = []
+        tol = 1e-1
+        for xx, yy in zip(x, y):
+            if not (abs(xx) < tol and abs(yy) < tol):
+                filterx.append(xx)
+                filtery.append(yy)
+
+
+        self.lines.set_xdata(filterx)
+        self.lines.set_ydata(filtery)
         self.figure.canvas.draw()
 
 
@@ -233,9 +276,15 @@ if __name__ == "__main__":
     rplidar.start_monitor(archive=True)
 
     plot = XYPlot()
+    #floor_map = FloorMap()
 
     try:
         while True:
+
+            #x = rplidar.current_frame.x
+            #y = rplidar.current_frame.y
+            #floor_map.add_measurement(x, y)
+
             plot.update(rplidar.current_frame)
             time.sleep(0.15)
 
