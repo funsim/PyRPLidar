@@ -6,7 +6,7 @@ RPLidar Python Driver
 
 """
 
-
+import os
 import serial
 import logging
 import Queue
@@ -52,7 +52,7 @@ class RPLidar(object):
 
     def __init__(self, portname, baudrate=115200, timeout=1):
 
-        #init serial port
+        # init serial port
         self.serial_port = None
         self.portname = portname
         self.baudrate = baudrate
@@ -62,7 +62,10 @@ class RPLidar(object):
                                stopbits=serial.STOPBITS_ONE,
                                parity=serial.PARITY_NONE,
                                timeout=timeout)
+
+        # status variables
         self.isConnected = False
+        self.motorRunning = None
 
         # init monitor
         self.monitor = None
@@ -80,6 +83,7 @@ class RPLidar(object):
                 self.serial_port = serial.Serial(**self.serial_arg)
                 self.isConnected = True
                 logging.debug("Connected to RPLidar on port %s", self.portname)
+                self.stop_motor()
             except serial.SerialException as e:
                 logging.error(e.message)
 
@@ -101,9 +105,28 @@ class RPLidar(object):
 
         self.send_command(RPLIDAR_CMD_RESET)
         logging.debug("Command RESET sent.")
+        time.sleep(0.1)
+
+
+    def start_motor(self):
+        """Start RPLidar motor by setting DTR (which is connected to pin MOTOCTL
+        on RPLidar) to False."""
+
+        self.serial_port.setDTR(False)
+        self.motorRunning = True
+        logging.debug("RPLidar motor is turned ON.")
+
+
+    def stop_motor(self):
+        """Stop RPLidar motor by setting DTR to True."""
+
+        self.serial_port.setDTR(True)
+        self.motorRunning = False
+        logging.debug("RPLidar motor is turned OFF.")
 
 
     def send_command(self, command):
+        """Send command to RPLidar through the serial connection"""
 
         cmd_bytes = rplidar_command_format.build(Container(
                              sync_byte=RPLIDAR_CMD_SYNC_BYTE, cmd_flag=command))
@@ -112,6 +135,7 @@ class RPLidar(object):
 
 
     def response_header(self, timeout=1):
+        """Read response header from RPLidar through the serial connection"""
 
         start_time = time.time()
 
@@ -128,13 +152,13 @@ class RPLidar(object):
                     (parsed.sync_byte2 != RPLIDAR_ANS_SYNC_BYTE2)):
                     raise RPLidarError("RESULT_INVALID_ANS_HEADER")
                 else:
-                    return parsed.type
+                    return parsed.response_type
 
         raise RPLidarError("RESULT_READING_TIMEOUT")
 
 
     def get_device_info(self):
-        "Obtain hardware information about RPLidar"
+        """Obtain hardware information about RPLidar"""
 
         self.serial_port.flushInput()
 
@@ -155,7 +179,7 @@ class RPLidar(object):
 
 
     def get_health(self):
-        "Obtain health information about RPLidar"
+        """Obtain health information about RPLidar"""
 
         self.serial_port.flushInput()
 
@@ -212,7 +236,7 @@ class PolarPlot(object):
 
 
     def update(self, current_frame):
-        """ re-draw the polar plot with new curFrame """
+        """ re-draw the polar plot with new current_frame """
 
         self.lines.set_xdata(current_frame.angle_r)
         self.lines.set_ydata(current_frame.distance)
@@ -234,13 +258,16 @@ class XYPlot(object):
                                    marker=".",
                                    markersize=3,
                                    markerfacecolor="blue")
+        self.origin, = self.ax.plot([],[],
+                                    marker="x",
+                                    markerfacecolor="black")
         self.ax.set_xlim(-5000, 5000)
         self.ax.set_ylim(-5000, 5000)
         self.ax.grid()
 
 
     def update(self, current_frame):
-        """ re-draw the XY plot with new curFrame """
+        """ re-draw the XY plot with new current_frame """
 
         x = list(current_frame.x)
         y = list(current_frame.y)
@@ -257,7 +284,23 @@ class XYPlot(object):
 
         self.lines.set_xdata(filterx)
         self.lines.set_ydata(filtery)
+        try:
+            self.origin.set_xdata(filterx[0])
+            self.origin.set_ydata(filtery[0])
+        except:
+            pass
+
         self.figure.canvas.draw()
+
+def find_rplidar_port():
+    """ Attempts to identify the RPlidar USB port by polling common names. """
+
+    suspects = ["/dev/ttyUSB0", "/dev/tty.SLAB_USBtoUART"]
+    for f in suspects:
+        print "trying ", f
+        if os.path.exists(f):
+            return f
+    raise IOError, "No RPLidar device was found."
 
 
 if __name__ == "__main__":
@@ -266,7 +309,8 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG,
                     format="[%(levelname)s] (%(threadName)-10s) %(message)s")
 
-    rplidar = RPLidar("/dev/ttyUSB0")
+    port = find_rplidar_port()
+    rplidar = RPLidar(port)
     rplidar.connect()
 
 
@@ -275,7 +319,7 @@ if __name__ == "__main__":
 
     rplidar.start_monitor(archive=True)
 
-    plot = XYPlot()
+    plot = PolarPlot()
     #floor_map = FloorMap()
 
     try:
