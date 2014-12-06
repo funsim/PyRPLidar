@@ -13,7 +13,7 @@ import sys
 import logging
 import time
 import select
-from rplidar import RPLidar, XYPlot
+from rplidar import *
 
 
 def filter_frame(x, y):
@@ -32,7 +32,8 @@ def filter_frame(x, y):
 logging.basicConfig(level=logging.DEBUG,
                 format="[%(levelname)s] (%(threadName)-10s) %(message)s")
 
-rplidar = RPLidar("/dev/ttyUSB0")
+port = find_rplidar_port()
+rplidar = RPLidar(port)
 rplidar.connect()
 
 print rplidar.get_device_info()

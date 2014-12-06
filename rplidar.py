@@ -6,7 +6,7 @@ RPLidar Python Driver
 
 """
 
-
+import os
 import serial
 import logging
 import Queue
@@ -51,7 +51,7 @@ class FloorMap(object):
 class RPLidar(object):
 
     def __init__(self, portname, baudrate=115200, timeout=1):
-        
+
         # init serial port
         self.serial_port = None
         self.portname = portname
@@ -62,11 +62,11 @@ class RPLidar(object):
                                stopbits=serial.STOPBITS_ONE,
                                parity=serial.PARITY_NONE,
                                timeout=timeout)
-        
+
         # status variables
         self.isConnected = False
         self.motorRunning = None
-        
+
         # init monitor
         self.monitor = None
 
@@ -106,7 +106,7 @@ class RPLidar(object):
         self.send_command(RPLIDAR_CMD_RESET)
         logging.debug("Command RESET sent.")
         time.sleep(0.1)
-        
+
 
     def start_motor(self):
         """Start RPLidar motor by setting DTR (which is connected to pin MOTOCTL
@@ -127,7 +127,7 @@ class RPLidar(object):
 
     def send_command(self, command):
         """Send command to RPLidar through the serial connection"""
-        
+
         cmd_bytes = rplidar_command_format.build(Container(
                              sync_byte=RPLIDAR_CMD_SYNC_BYTE, cmd_flag=command))
         self.serial_port.write(cmd_bytes)
@@ -136,7 +136,7 @@ class RPLidar(object):
 
     def response_header(self, timeout=1):
         """Read response header from RPLidar through the serial connection"""
-        
+
         start_time = time.time()
 
         while time.time() < start_time + timeout:
@@ -153,13 +153,13 @@ class RPLidar(object):
                     raise RPLidarError("RESULT_INVALID_ANS_HEADER")
                 else:
                     return parsed.response_type
-    
+
         raise RPLidarError("RESULT_READING_TIMEOUT")
 
 
     def get_device_info(self):
         """Obtain hardware information about RPLidar"""
-        
+
         self.serial_port.flushInput()
 
         self.send_command(RPLIDAR_CMD_GET_DEVICE_INFO)
@@ -264,8 +264,8 @@ class XYPlot(object):
         self.ax.set_xlim(-5000, 5000)
         self.ax.set_ylim(-5000, 5000)
         self.ax.grid()
-    
-    
+
+
     def update(self, current_frame):
         """ re-draw the XY plot with new current_frame """
 
@@ -292,6 +292,16 @@ class XYPlot(object):
 
         self.figure.canvas.draw()
 
+def find_rplidar_port():
+    """ Attempts to identify the RPlidar USB port by polling common names. """
+
+    suspects = ["/dev/ttyUSB0", "/dev/tty.SLAB_USBtoUART"]
+    for f in suspects:
+        print "trying ", f
+        if os.path.exists(f):
+            return f
+    raise IOError, "No RPLidar device was found."
+
 
 if __name__ == "__main__":
 
@@ -299,7 +309,8 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG,
                     format="[%(levelname)s] (%(threadName)-10s) %(message)s")
 
-    rplidar = RPLidar("/dev/ttyUSB0")
+    port = find_rplidar_port()
+    rplidar = RPLidar(port)
     rplidar.connect()
 
 
@@ -308,7 +319,7 @@ if __name__ == "__main__":
 
     rplidar.start_monitor(archive=True)
 
-    plot = XYPlot()
+    plot = PolarPlot()
     #floor_map = FloorMap()
 
     try:
