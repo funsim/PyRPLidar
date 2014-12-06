@@ -234,6 +234,9 @@ class XYPlot(object):
                                    marker=".",
                                    markersize=3,
                                    markerfacecolor="blue")
+        self.origin, = self.ax.plot([],[],
+                                    marker="x",
+                                    markerfacecolor="black")
         self.ax.set_xlim(-5000, 5000)
         self.ax.set_ylim(-5000, 5000)
         self.ax.grid()
@@ -257,6 +260,12 @@ class XYPlot(object):
 
         self.lines.set_xdata(filterx)
         self.lines.set_ydata(filtery)
+        try:
+            self.origin.set_xdata(filterx[0])
+            self.origin.set_ydata(filtery[0])
+        except:
+            pass
+
         self.figure.canvas.draw()
 
 
