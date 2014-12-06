@@ -51,8 +51,8 @@ class FloorMap(object):
 class RPLidar(object):
 
     def __init__(self, portname, baudrate=115200, timeout=1):
-
-        #init serial port
+        
+        # init serial port
         self.serial_port = None
         self.portname = portname
         self.baudrate = baudrate
@@ -62,8 +62,11 @@ class RPLidar(object):
                                stopbits=serial.STOPBITS_ONE,
                                parity=serial.PARITY_NONE,
                                timeout=timeout)
+        
+        # status variables
         self.isConnected = False
-
+        self.motorRunning = None
+        
         # init monitor
         self.monitor = None
 
@@ -80,6 +83,7 @@ class RPLidar(object):
                 self.serial_port = serial.Serial(**self.serial_arg)
                 self.isConnected = True
                 logging.debug("Connected to RPLidar on port %s", self.portname)
+                self.stop_motor()
             except serial.SerialException as e:
                 logging.error(e.message)
 
@@ -101,10 +105,29 @@ class RPLidar(object):
 
         self.send_command(RPLIDAR_CMD_RESET)
         logging.debug("Command RESET sent.")
+        time.sleep(0.1)
+        
+
+    def start_motor(self):
+        """Start RPLidar motor by setting DTR (which is connected to pin MOTOCTL
+        on RPLidar) to False."""
+
+        self.serial_port.setDTR(False)
+        self.motorRunning = True
+        logging.debug("RPLidar motor is turned ON.")
+
+
+    def stop_motor(self):
+        """Stop RPLidar motor by setting DTR to True."""
+
+        self.serial_port.setDTR(True)
+        self.motorRunning = False
+        logging.debug("RPLidar motor is turned OFF.")
 
 
     def send_command(self, command):
-
+        """Send command to RPLidar through the serial connection"""
+        
         cmd_bytes = rplidar_command_format.build(Container(
                              sync_byte=RPLIDAR_CMD_SYNC_BYTE, cmd_flag=command))
         self.serial_port.write(cmd_bytes)
@@ -112,7 +135,8 @@ class RPLidar(object):
 
 
     def response_header(self, timeout=1):
-
+        """Read response header from RPLidar through the serial connection"""
+        
         start_time = time.time()
 
         while time.time() < start_time + timeout:
@@ -128,14 +152,14 @@ class RPLidar(object):
                     (parsed.sync_byte2 != RPLIDAR_ANS_SYNC_BYTE2)):
                     raise RPLidarError("RESULT_INVALID_ANS_HEADER")
                 else:
-                    return parsed.type
-
+                    return parsed.response_type
+    
         raise RPLidarError("RESULT_READING_TIMEOUT")
 
 
     def get_device_info(self):
-        "Obtain hardware information about RPLidar"
-
+        """Obtain hardware information about RPLidar"""
+        
         self.serial_port.flushInput()
 
         self.send_command(RPLIDAR_CMD_GET_DEVICE_INFO)
@@ -155,7 +179,7 @@ class RPLidar(object):
 
 
     def get_health(self):
-        "Obtain health information about RPLidar"
+        """Obtain health information about RPLidar"""
 
         self.serial_port.flushInput()
 
@@ -212,7 +236,7 @@ class PolarPlot(object):
 
 
     def update(self, current_frame):
-        """ re-draw the polar plot with new curFrame """
+        """ re-draw the polar plot with new current_frame """
 
         self.lines.set_xdata(current_frame.angle_r)
         self.lines.set_ydata(current_frame.distance)
@@ -240,10 +264,10 @@ class XYPlot(object):
         self.ax.set_xlim(-5000, 5000)
         self.ax.set_ylim(-5000, 5000)
         self.ax.grid()
-
-
+    
+    
     def update(self, current_frame):
-        """ re-draw the XY plot with new curFrame """
+        """ re-draw the XY plot with new current_frame """
 
         x = list(current_frame.x)
         y = list(current_frame.y)
