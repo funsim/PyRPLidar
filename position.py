@@ -80,10 +80,11 @@ e = errorFunction(room, moveImagePos, OrD)
 #print e
 
 def objective(p):
-    print "Trying out point ", p
     moveImagePos = np.array(list(p) + [0])
     OrD = calc_sample_distances(origoImagePos, room)
-    return errorFunction(room, moveImagePos, OrD)
+    e = errorFunction(room, moveImagePos, OrD)
+    print "Obj {} = {}".format(p, e)
+    return e
 
 def derivative(p):
     p = np.array(p)
@@ -94,14 +95,20 @@ def derivative(p):
     objx = objective(list(px))
     objy = objective(list(py))
 
-    return np.array([(objx-obj)/h, (objy-obj)/h])
+    deriv = np.array([(objx-obj)/h, (objy-obj)/h])
+    print "Derivative: ", deriv
+    return deriv
 
 print "Real answer is:", origoImagePos[:2]
-minimize(objective, np.array([0, 0]), method="L-BFGS-B",
+# TODO: minimize does not work because the objective is not differentiable
+#minimize(objective, np.array([100, 100]), method="SLSQP",
+#        options={"disp": True})
+
+# Instead we have to use the (slower but more robust Powell method)
+minimize(objective, np.array([100, 100]), method="Powell",
         options={"disp": True})
 
-crash()
-
+import sys; sys.exit()
 
 #plt.plot([origoImagePos[0]+ShiftPosX,origoImagePos[1]+ShiftPosY])
 #plt.show()
