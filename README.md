@@ -1,10 +1,15 @@
 A Python library for accessing an RPLidar device.
 
-Install
+![alt tag](https://raw.githubusercontent.com/funsim/PyRPLidar/master/example.png)
+
+Install with pip:
 
     git clone https://github.com/funsim/PyRPLidar.git
     cd PyRPLidar
     sudo python setup.py install
+
+
+The above screenshot was created with this example:
 
 ```python
 from rplidar import *
@@ -26,3 +31,4 @@ plot = XYPlot()
 while True:
     plot.update(rplidar.current_frame)
 ```
+
