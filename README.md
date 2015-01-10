@@ -4,9 +4,7 @@ A Python library for accessing an RPLidar device.
 
 Install with pip:
 
-    git clone https://github.com/funsim/PyRPLidar.git
-    cd PyRPLidar
-    sudo python setup.py install
+    pip install https://github.com/funsim/PyRPLidar/archive/master.zip
 
 
 The above screenshot was created with this example:
