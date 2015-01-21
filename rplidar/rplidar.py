@@ -294,7 +294,13 @@ class XYPlot(object):
 
 def find_rplidar_port():
     """ Attempts to identify the RPlidar USB port by polling common names. """
+    import platform
 
+    # Windows
+    if platform.system() == "Windows":
+        return "COM3"
+
+    # Mac and Linux
     suspects = ["/dev/ttyUSB0", "/dev/tty.SLAB_USBtoUART"]
     for f in suspects:
         print "trying ", f
